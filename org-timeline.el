@@ -95,17 +95,6 @@ Clocked blocks appear in the agenda when `org-agenda-log-mode' is
 activated."
   :group 'org-timeline-faces)
 
-
-(defmacro org-timeline-with-each-line (&rest body)
-  "Execute BODY on each line in buffer."
-  (declare (indent 0)
-           (debug (body)))
-  `(save-excursion
-     (goto-char (point-min))
-     ,@body
-     (while (= (forward-line) 0)
-       ,@body)))
-
 (defun org-timeline--get-face ()
   "Get the face with which to draw the current block."
   (if-let (entry (org-entry-get (org-get-at-bol 'org-marker) "TIMELINE_FACE" t))
@@ -163,30 +152,31 @@ Return new copy of STRING."
 
 (defun org-timeline--list-tasks ()
   "Build the list of tasks to display."
-  (let* ((tasks nil)
-         (start-offset (* org-timeline-start-hour 60))
-         (current-time (+ (* 60 (string-to-number (format-time-string "%H")))
-                          (string-to-number (format-time-string "%M")))))
-    (org-timeline-with-each-line
-      (when-let* ((time-of-day (org-get-at-bol 'time-of-day))
-                  (marker (org-get-at-bol 'org-marker))
-                  (type (org-get-at-bol 'type)))
-        (when (member type (list "scheduled" "clock" "timestamp"))
-          (let ((duration (org-get-at-bol 'duration))
-                (txt (buffer-substring (line-beginning-position) (line-end-position)))
-                (line (line-number-at-pos)))
-            (when (and (numberp duration)
-                       (< duration 0))
-              (cl-incf duration 1440))
-            (let* ((hour (/ time-of-day 100))
-                   (minute (mod time-of-day 100))
-                   (beg (+ (* hour 60) minute))
-                   (end (if duration
-                            (round (+ beg duration))
-                          current-time))
-                   (face (org-timeline--get-face)))
-              (when (>= beg start-offset)
-                (push (list beg end face txt line) tasks)))))))
+  (let ((tasks nil)
+        (start-offset (* org-timeline-start-hour 60))
+        (current-time (+ (* 60 (string-to-number (format-time-string "%H")))
+                         (string-to-number (format-time-string "%M")))))
+    (save-excursion
+      (goto-char (point-min))
+      (while (eql (forward-line) 0)
+        (when-let ((time-of-day (org-get-at-bol 'time-of-day))
+                   (marker (org-get-at-bol 'org-marker))
+                   (type (org-get-at-bol 'type)))
+          (when (member type '("scheduled" "clock" "timestamp"))
+            (let ((duration (org-get-at-bol 'duration))
+                  (txt (buffer-substring (line-beginning-position) (line-end-position)))
+                  (line (line-number-at-pos)))
+              (when (and (numberp duration) (< duration 0))
+                (cl-incf duration 1440))
+              (let* ((hour (/ time-of-day 100))
+                     (minute (mod time-of-day 100))
+                     (beg (+ (* hour 60) minute))
+                     (end (if duration
+                              (round (+ beg duration))
+                            current-time))
+                     (face 'org-timeline-block))
+                (when (>= beg start-offset)
+                  (push (list beg end face txt line) tasks))))))))
     (nreverse tasks)))
 
 (defun org-timeline--generate-timeline ()
