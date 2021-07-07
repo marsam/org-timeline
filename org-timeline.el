@@ -6,7 +6,7 @@
 ;; Maintainer: Matúš Goljer <matus.goljer@gmail.com>
 ;; Version: 0.3.0
 ;; Created: 16th April 2017
-;; Package-requires: ((dash "2.13.0") (emacs "24.3"))
+;; Package-requires: ((emacs "26.1"))
 ;; Keywords: calendar
 ;; URL: https://github.com/Fuco1/org-timeline/
 
@@ -43,8 +43,6 @@
 ;; taken to be a face name.
 
 ;;; Code:
-
-(require 'dash)
 
 (require 'org-agenda)
 
@@ -110,8 +108,8 @@ activated."
 
 (defun org-timeline--get-face ()
   "Get the face with which to draw the current block."
-  (--if-let (org-entry-get (org-get-at-bol 'org-marker) "TIMELINE_FACE" t)
-      (let ((read-face (car (read-from-string it))))
+  (if-let (entry (org-entry-get (org-get-at-bol 'org-marker) "TIMELINE_FACE" t))
+      (let ((read-face (car (read-from-string entry))))
         (if (stringp read-face)
             (list :background read-face)
           read-face))
@@ -170,9 +168,9 @@ Return new copy of STRING."
          (current-time (+ (* 60 (string-to-number (format-time-string "%H")))
                           (string-to-number (format-time-string "%M")))))
     (org-timeline-with-each-line
-      (-when-let* ((time-of-day (org-get-at-bol 'time-of-day))
-                   (marker (org-get-at-bol 'org-marker))
-                   (type (org-get-at-bol 'type)))
+      (when-let* ((time-of-day (org-get-at-bol 'time-of-day))
+                  (marker (org-get-at-bol 'org-marker))
+                  (type (org-get-at-bol 'type)))
         (when (member type (list "scheduled" "clock" "timestamp"))
           (let ((duration (org-get-at-bol 'duration))
                 (txt (buffer-substring (line-beginning-position) (line-end-position)))
@@ -216,28 +214,27 @@ Return new copy of STRING."
         (define-key move-to-task-map [mouse-1] 'org-timeline--move-to-task)
         (with-temp-buffer
           (insert timeline)
-          (-each tasks
-            (-lambda ((beg end face txt line))
-              (while (get-text-property (get-start-pos current-line beg) 'org-timeline-occupied)
-                (cl-incf current-line)
-                (when (> (get-start-pos current-line beg) (point-max))
-                  (save-excursion
-                    (goto-char (point-max))
-                    (insert "\n" slotline))))
-              (let ((start-pos (get-start-pos current-line beg))
-                    (end-pos (get-end-pos current-line end))
-                    (props (list 'font-lock-face face
-                                 'org-timeline-occupied t
-                                 'mouse-face 'highlight
-                                 'keymap move-to-task-map
-                                 'txt txt
-                                 'help-echo (lambda (w obj pos)
-                                              (org-timeline--hover-info w txt)
-                                              txt) ;; the lambda will be called on block hover
-                                 'org-timeline-task-line line
-                                 'cursor-sensor-functions '(org-timeline--display-info))))
-                (add-text-properties start-pos end-pos props))
-              (setq current-line 1)))
+          (pcase-dolist (`(,beg ,end ,face ,txt ,line) tasks)
+            (while (get-text-property (get-start-pos current-line beg) 'org-timeline-occupied)
+              (cl-incf current-line)
+              (when (> (get-start-pos current-line beg) (point-max))
+                (save-excursion
+                  (goto-char (point-max))
+                  (insert "\n" slotline))))
+            (let ((start-pos (get-start-pos current-line beg))
+                  (end-pos (get-end-pos current-line end))
+                  (props (list 'font-lock-face face
+                               'org-timeline-occupied t
+                               'mouse-face 'highlight
+                               'keymap move-to-task-map
+                               'txt txt
+                               'help-echo (lambda (w _obj _pos)
+                                            (org-timeline--hover-info w txt)
+                                            txt) ;; the lambda will be called on block hover
+                               'org-timeline-task-line line
+                               'cursor-sensor-functions '(org-timeline--display-info))))
+              (add-text-properties start-pos end-pos props))
+            (setq current-line 1))
           (buffer-string))))))
 
 ;;;###autoload
