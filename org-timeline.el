@@ -131,7 +131,7 @@ Return new copy of STRING."
 (defun org-timeline--clear-info ()
   "Clear the info line"
   (save-excursion
-    (goto-line org-timeline-first-line)
+    (org-goto-line org-timeline-first-line)
     (forward-line (- org-timeline-height 1))
     (let ((inhibit-read-only t))
       (while (not (get-text-property (point) 'org-timeline-end))
@@ -145,7 +145,7 @@ Return new copy of STRING."
       (save-excursion
         (select-window win)
         (org-timeline--clear-info)
-        (goto-line org-timeline-first-line)
+        (org-goto-line org-timeline-first-line)
         (forward-line (- org-timeline-height 1))
         (let ((inhibit-read-only t))
           (insert txt)
@@ -158,7 +158,7 @@ Return new copy of STRING."
      (org-timeline--clear-info)
      (when org-timeline-prepend
        (setq line (+ line org-timeline-height)))
-     (goto-line line)
+     (org-goto-line line)
      (search-forward (get-text-property (point) 'time)))))
 
 (defun org-timeline--list-tasks ()
